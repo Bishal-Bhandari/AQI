@@ -13,3 +13,22 @@ geo = gpd.read_file(
 # Filter your country
 COUNTRY = "Nepal"   # Change to any country
 country_geo = geo[geo["ADMIN"] == COUNTRY]
+
+# Save as local GeoJSON
+country_geo.to_file("data.geojson", driver="GeoJSON")
+print("data.geojson created successfully!")
+
+@app.route("/")
+def index():
+    return send_from_directory(".", "index.html")
+
+@app.route("/style.css")
+def css():
+    return send_from_directory(".", "style.css")
+
+@app.route("/geojson")
+def geojson():
+    return send_from_directory(".", "data.geojson")
+
+if __name__ == "__main__":
+    app.run(debug=True)
