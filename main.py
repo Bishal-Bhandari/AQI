@@ -1,46 +1,63 @@
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, jsonify, render_template
 import requests
 import json
 import os
 
 app = Flask(__name__)
 
-# Fetch AQI from OpenAQ API for a country
-def fetch_aqi(country_code="NP"):
-    url = f"https://api.openaq.org/v2/latest?country={NP}&limit=100"
-    response = requests.get(url)
+# Load API keys
+with open('api_keys.json') as json_file:
+    api_keys = json.load(json_file)
+API_KEY = api_keys['Weather_API']['API_key']
+
+AQI_URL = "http://api.openweathermap.org/data/2.5/air_pollution"
+
+# Major cities in Nepal
+CITIES = [
+    {"name": "Kathmandu", "lat": 27.7172, "lon": 85.3240},
+    {"name": "Pokhara", "lat": 28.2096, "lon": 83.9856},
+    {"name": "Biratnagar", "lat": 26.4525, "lon": 87.2718},
+    {"name": "Lalitpur", "lat": 27.6670, "lon": 85.3247},
+]
+
+
+app = Flask(__name__)
+
+def get_aqi(lat, lon):
+    params = {
+        "lat": lat,
+        "lon": lon,
+        "appid": API_KEY
+    }
+    response = requests.get(AQI_URL, params=params)
     data = response.json()
 
-    aqi_points = []
-    for item in data.get("results", []):
-        lat = item["coordinates"]["latitude"]
-        lon = item["coordinates"]["longitude"]
-        city = item.get("city", "Unknown")
-        location = item.get("location", "Unknown")
+    aqi = data["list"][0]["main"]["aqi"]
+    components = data["list"][0]["components"]
 
-        # Extract PM2.5 or fall backyes
-        pm25 = "N/A"
-        for m in item["measurements"]:
-            if m["parameter"] == "pm25":
-                pm25 = m["value"]
+    return {
+        "aqi": aqi,
+        "components": components
+    }
 
-        aqi_points.append({
-            "city": city,
-            "location": location,
-            "pm25": pm25,
-            "lat": lat,
-            "lon": lon
-        })
 
-    return aqi_points
+@app.route("/aqi")
+def aqi_data():
+    results = []
+    for city in CITIES:
+        aqi_info = get_aqi(city["lat"], city["lon"])
+        results.append({**city, **aqi_info})
 
-# Filter your country
-COUNTRY = "Nepal"   # Change to any country
-country_geo = geo[geo["ADMIN"] == COUNTRY]
+    return jsonify(results)
 
-# Save as local GeoJSON
-country_geo.to_file("data.geojson", driver="GeoJSON")
-print("data.geojson created successfully!")
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+if __name__ == "__main__":
+    app.run(debug=True)
 
 @app.route("/")
 def index():
