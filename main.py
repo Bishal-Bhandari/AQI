@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 
-# Fetch AQI from OpenAQ API for a country (Nepal example)
+# Fetch AQI from OpenAQ API for a country
 def fetch_aqi(country_code="NP"):
     url = f"https://api.openaq.org/v2/latest?country={country_code}&limit=100"
     response = requests.get(url)
