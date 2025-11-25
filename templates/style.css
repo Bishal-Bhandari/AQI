@@ -11,3 +11,32 @@ body {
     border: 2px solid #333;
     border-radius: 8px;
 }
+#aqi-legend {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: white;
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+    font-size: 14px;
+    z-index: 9999;
+}
+
+#aqi-legend table {
+    width: 100%;
+}
+
+#aqi-legend h4 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    text-align: center;
+}
+
+#aqi-legend .circle {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
