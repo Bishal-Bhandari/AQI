@@ -1,50 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Interactive Country Map</title>
-    <link rel="stylesheet" href="style.css">
-
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet"
-          href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <title>Nepal AQI Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { height: 100vh; width: 100%; }
+        .tooltip {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+    </style>
 </head>
-
 <body>
-    <h2>Interactive Country Map (Hover for Info)</h2>
-    <div id="map"></div>
 
-    <script>
-        // Initialize the map
-        var map = L.map('map').setView([28, 85], 6);  // Center near Nepal
+<div id="map"></div>
 
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18,
-        }).addTo(map);
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-        // Load GeoJSON from Python backend
-        fetch('/geojson')
-            .then(response => response.json())
-            .then(data => {
-                L.geoJSON(data, {
-                    style: {
-                        color: "blue",
-                        weight: 2,
-                        fillOpacity: 0.1
-                    },
-                    onEachFeature: function (feature, layer) {
-                        layer.bindTooltip(
-                            "<b>Country:</b> " + feature.properties.ADMIN +
-                            "<br><b>ISO Code:</b> " + feature.properties.ISO_A3,
-                            {sticky: true}
-                        );
-                    }
+<script>
+    const map = L.map('map').setView([28.3, 84], 7);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+    }).addTo(map);
+
+    // AQI Color Codes
+    function aqiColor(aqi) {
+        return {
+            1: "green",
+            2: "yellow",
+            3: "orange",
+            4: "red",
+            5: "purple"
+        }[aqi] || "gray";
+    }
+
+    // Fetch AQI from backend
+    fetch("/aqi")
+        .then(res => res.json())
+        .then(data => {
+            data.forEach(city => {
+                const marker = L.circleMarker([city.lat, city.lon], {
+                    radius: 10,
+                    color: aqiColor(city.aqi),
+                    fillColor: aqiColor(city.aqi),
+                    fillOpacity: 0.7
                 }).addTo(map);
+
+                const tooltipHTML = `
+                    <div class="tooltip">
+                        <strong>${city.name}</strong><br>
+                        AQI: ${city.aqi}<br><br>
+                        <b>PM2.5:</b> ${city.components.pm2_5}<br>
+                        <b>PM10:</b> ${city.components.pm10}<br>
+                        <b>CO:</b> ${city.components.co}<br>
+                        <b>NO₂:</b> ${city.components.no2}<br>
+                        <b>SO₂:</b> ${city.components.so2}<br>
+                        <b>O₃:</b> ${city.components.o3}
+                    </div>
+                `;
+
+                marker.bindTooltip(tooltipHTML);
             });
-    </script>
+        });
+</script>
 
 </body>
 </html>
