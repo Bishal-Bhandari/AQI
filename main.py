@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Fetch AQI from OpenAQ API for a country
 def fetch_aqi(country_code="NP"):
-    url = f"https://api.openaq.org/v2/latest?country={country_code}&limit=100"
+    url = f"https://api.openaq.org/v2/latest?country={NP}&limit=100"
     response = requests.get(url)
     data = response.json()
 
@@ -18,7 +18,7 @@ def fetch_aqi(country_code="NP"):
         city = item.get("city", "Unknown")
         location = item.get("location", "Unknown")
 
-        # Extract PM2.5 or fall back
+        # Extract PM2.5 or fall backyes
         pm25 = "N/A"
         for m in item["measurements"]:
             if m["parameter"] == "pm25":
