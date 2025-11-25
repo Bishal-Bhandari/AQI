@@ -1,14 +1,38 @@
 from flask import Flask, send_from_directory
-import geopandas as gpd
+import requests
 import json
 import os
 
 app = Flask(__name__)
 
-# Load world GeoJSON
-geo = gpd.read_file(
-    "https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson"
-)
+# Fetch AQI from OpenAQ API for a country (Nepal example)
+def fetch_aqi(country_code="NP"):
+    url = f"https://api.openaq.org/v2/latest?country={country_code}&limit=100"
+    response = requests.get(url)
+    data = response.json()
+
+    aqi_points = []
+    for item in data.get("results", []):
+        lat = item["coordinates"]["latitude"]
+        lon = item["coordinates"]["longitude"]
+        city = item.get("city", "Unknown")
+        location = item.get("location", "Unknown")
+
+        # Extract PM2.5 or fall back
+        pm25 = "N/A"
+        for m in item["measurements"]:
+            if m["parameter"] == "pm25":
+                pm25 = m["value"]
+
+        aqi_points.append({
+            "city": city,
+            "location": location,
+            "pm25": pm25,
+            "lat": lat,
+            "lon": lon
+        })
+
+    return aqi_points
 
 # Filter your country
 COUNTRY = "Nepal"   # Change to any country
