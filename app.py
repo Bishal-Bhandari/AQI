@@ -61,11 +61,11 @@ if __name__ == "__main__":
 
 @app.route("/")
 def index():
-    return send_from_directory(".", "index.html")
+    return send_from_directory(".", "templates/index.html")
 
 @app.route("/style.css")
 def css():
-    return send_from_directory(".", "style.css")
+    return send_from_directory(".", "templates/style.css")
 
 @app.route("/geojson")
 def geojson():
