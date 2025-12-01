@@ -43,3 +43,20 @@ if __name__ == "__main__":
         # Train model on history
         model = build_model((seq_len, X.shape[2]))
         model.fit(X, y, epochs=20, batch_size=4, verbose=1)
+
+        # take the last seq_len from history + first few new inputs to form input for first prediction
+        last_seq = scaler.transform(pd.DataFrame(history)[
+                                        ['weather_temp', 'weather_humidity', 'wind_speed', 'wind_direction',
+                                         'traffic_level', 'dust_road_flag', 'month', 'dayofyear', 'dry_season']].values[
+                                    -seq_len:])
+        last_seq = last_seq.reshape((1, seq_len, X.shape[2]))
+
+        predictions = []
+        for i in range(len(new_inputs)):
+            pred = model.predict(last_seq)[0][0]
+            predictions.append(pred)
+            # update last_seq by appending new input (scaled) and popping first
+            new_feat = X_new_scaled[i].reshape((1, 1, X.shape[1]))
+            last_seq = np.concatenate([last_seq[:, 1:, :], new_feat], axis=1)
+
+        print("Predicted AQI for next days:", predictions)
