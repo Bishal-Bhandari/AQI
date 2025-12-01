@@ -35,3 +35,11 @@ if __name__ == "__main__":
             'traffic_level': np.random.randint(1, 5),
             'dust_road_flag': np.random.randint(0, 2),
         })
+
+        # Build data
+        seq_len = 7
+        X, y, scaler, X_new_scaled = build_dataset(history, new_inputs, seq_len=seq_len)
+
+        # Train model on history
+        model = build_model((seq_len, X.shape[2]))
+        model.fit(X, y, epochs=20, batch_size=4, verbose=1)
