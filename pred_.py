@@ -23,3 +23,15 @@ if __name__ == "__main__":
             'traffic_level': np.random.randint(1, 5),         # e.g. 1–5 scale
             'dust_road_flag': np.random.randint(0, 2),        # 0 or 1
         })
+    # new inputs (next 3 days — maybe from weather forecast / user inputs)
+    new_inputs = []
+    for offset in range(1, 4):
+        new_inputs.append({
+            'timestamp': (datetime.now() + pd.Timedelta(days=offset)).strftime("%Y-%m-%d"),
+            'weather_temp': np.random.uniform(15, 35),
+            'weather_humidity': np.random.uniform(30, 90),
+            'wind_speed': np.random.uniform(0, 10),
+            'wind_direction': np.random.uniform(0, 360),
+            'traffic_level': np.random.randint(1, 5),
+            'dust_road_flag': np.random.randint(0, 2),
+        })
