@@ -10,7 +10,7 @@ from tensorflow.keras.optimizers import Adam
 
 
 if __name__ == "__main__":
-    # Example historical data (last 14 days)
+    # historical data (last 14 days)
     history = []
     for day in range(14):
         history.append({
