@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, Dense, Input
 from sklearn.preprocessing import MinMaxScaler
 
 # Feature engineering
@@ -43,18 +43,15 @@ def build_dataset(history, future_inputs, seq_len=7):
 
 
 # build LSTM model
-def build_model(input_shape):
+def build_model(seq_len, num_features):
     model = Sequential([
-        LSTM(64, return_sequences=True, input_shape=input_shape),
-        Dropout(0.2),
-        LSTM(32),
-        Dropout(0.2),
-        Dense(16, activation="relu"),
+        Input(shape=(seq_len, num_features)),
+        LSTM(64, activation="tanh"),
+        Dense(32, activation='relu'),
         Dense(1)
     ])
-    model.compile(optimizer="adam", loss="mse")
+    model.compile(optimizer='adam', loss='mse')
     return model
-
 
 # perform prediction
 def predict_next_days(model, scaler, history_df, future_scaled, feature_cols, seq_len=7):
@@ -119,7 +116,7 @@ if __name__ == "__main__":
     )
 
     # train model
-    model = build_model((seq_len, X.shape[2]))
+    model = build_model(seq_len, X.shape[2])
     model.fit(X, y, epochs=20, batch_size=4, verbose=1)
 
     # predict next 3 days AQI
