@@ -51,7 +51,7 @@ def build_dataset(history,
         y_seq.append(y_known.values[i])
     X_seq, y_seq = np.array(X_seq), np.array(y_seq)
 
-    return X_seq, y_seq, scaler, X_new_scaled
+    return X, y, scaler, X_new_scaled, feature_cols
 
 # LSTM model
 def build_model(input_shape):
