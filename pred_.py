@@ -1,133 +1,131 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
-from sklearn.compose import ColumnTransformer
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-from tensorflow.keras.optimizers import Adam
+from sklearn.preprocessing import MinMaxScaler
+
+# Feature engineering
+def add_features(df):
+    df["month"] = pd.to_datetime(df["timestamp"]).dt.month
+    df["dayofyear"] = pd.to_datetime(df["timestamp"]).dt.dayofyear
+    df["dry_season"] = df["month"].apply(lambda m: 1 if 2 <= m <= 4 else 0)
+    return df
 
 
-# build dataset
-def build_dataset(history,
-                  new_inputs,   # list of dicts: weather, season, extra features, timestamp ...
-                  seq_len=7):
-    df_hist = pd.DataFrame(history)
-    df_new = pd.DataFrame(new_inputs)
+# Build dataset for LSTM
+def build_dataset(history, future_inputs, seq_len=7):
+    feature_cols = [
+        "weather_temp", "weather_humidity", "wind_speed", "wind_direction",
+        "traffic_level", "dust_road_flag", "month", "dayofyear", "dry_season"
+    ]
 
-    # Combine
-    df = pd.concat([df_hist, df_new], ignore_index=True)
-    # feature engineering
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df['month'] = df['timestamp'].dt.month
-    df['dayofyear'] = df['timestamp'].dt.dayofyear
-    # Example: dry-season flag (Feb–Apr)
-    df['dry_season'] = df['month'].isin([2, 3, 4]).astype(int)
+    # lists to DataFrames
+    hist_df = add_features(pd.DataFrame(history))
+    future_df = add_features(pd.DataFrame(future_inputs))
 
-    # define features to use
-    features = ['weather_temp', 'weather_humidity',
-                'wind_speed', 'wind_direction',  # if available
-                'traffic_level', 'dust_road_flag', 'dry_season',
-                'month', 'dayofyear']
-    target = 'aqi'
-
-    # separate X and y (for known history)
-    df_known = df.iloc[: len(history)]
-    X_known = df_known[features]
-    y_known = df_known[target]
-
-    # prepare new data
-    X_new = df.iloc[len(history):][features]
-
-    # Preprocess / scale
+    # prepare scaler
     scaler = MinMaxScaler()
-    X_scaled = scaler.fit_transform(X_known)
-    X_new_scaled = scaler.transform(X_new)
+    scaled_hist = scaler.fit_transform(hist_df[feature_cols])
 
-    # build sequences
-    X_seq, y_seq = [], []
-    for i in range(seq_len, len(X_scaled)):
-        X_seq.append(X_scaled[i-seq_len:i])
-        y_seq.append(y_known.values[i])
-    X_seq, y_seq = np.array(X_seq), np.array(y_seq)
+    # build sequences (X) and targets (y)
+    X, y = [], []
+    for i in range(len(scaled_hist) - seq_len):
+        X.append(scaled_hist[i:i+seq_len])
+        y.append(hist_df["aqi"].iloc[i+seq_len])
 
-    return X, y, scaler, X_new_scaled, feature_cols
+    X, y = np.array(X), np.array(y)
 
-# LSTM model
+    # scale future inputs
+    X_future = scaler.transform(future_df[feature_cols])
+
+    return X, y, scaler, X_future, feature_cols
+
+
+# build LSTM model
 def build_model(input_shape):
-    model = Sequential()
-    model.add(LSTM(50, input_shape=input_shape, return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(LSTM(50, return_sequences=False))
-    model.add(Dropout(0.2))
-    model.add(Dense(1, activation='linear'))
-    model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+    model = Sequential([
+        LSTM(64, return_sequences=True, input_shape=input_shape),
+        Dropout(0.2),
+        LSTM(32),
+        Dropout(0.2),
+        Dense(16, activation="relu"),
+        Dense(1)
+    ])
+    model.compile(optimizer="adam", loss="mse")
     return model
 
+
+# perform prediction
+def predict_next_days(model, scaler, history_df, future_scaled, feature_cols, seq_len=7):
+    # build full history again with engineered features
+    hist_df = add_features(pd.DataFrame(history_df))
+    last_seq_raw = hist_df[feature_cols].tail(seq_len)
+
+    # scale last sequence
+    last_seq = scaler.transform(last_seq_raw.to_numpy())
+    last_seq = last_seq.reshape((1, seq_len, len(feature_cols)))
+
+    predictions = []
+    seq = last_seq.copy()
+
+    for i in range(len(future_scaled)):
+        pred = model.predict(seq)[0][0]
+        predictions.append(pred)
+
+        # prepare new timestep
+        new_input = future_scaled[i].reshape(1, 1, len(feature_cols))
+
+        # slide window
+        seq = np.concatenate([seq[:, 1:, :], new_input], axis=1)
+
+    return predictions
+
+
 if __name__ == "__main__":
-    # historical data (last 14 days)
+    seq_len = 7
+
+    # generate synthetic 14-day training history
     history = []
     for day in range(14):
         history.append({
             'timestamp': (datetime.now() - pd.Timedelta(days=14-day)).strftime("%Y-%m-%d"),
-            'aqi': np.random.randint(50, 200),                # placeholder
-            'weather_temp': np.random.uniform(15, 35),
-            'weather_humidity': np.random.uniform(30, 90),
-            'wind_speed': np.random.uniform(0, 10),
-            'wind_direction': np.random.uniform(0, 360),
-            'traffic_level': np.random.randint(1, 5),         # e.g. 1–5 scale
-            'dust_road_flag': np.random.randint(0, 2),        # 0 or 1
-        })
-    # new inputs (next 3 days — maybe from weather forecast / user inputs)
-    new_inputs = []
-    for offset in range(1, 4):
-        new_inputs.append({
-            'timestamp': (datetime.now() + pd.Timedelta(days=offset)).strftime("%Y-%m-%d"),
-            'weather_temp': np.random.uniform(15, 35),
-            'weather_humidity': np.random.uniform(30, 90),
-            'wind_speed': np.random.uniform(0, 10),
+            'aqi': np.random.randint(40, 200),
+            'weather_temp': np.random.uniform(5, 35),
+            'weather_humidity': np.random.uniform(20, 90),
+            'wind_speed': np.random.uniform(0, 12),
             'wind_direction': np.random.uniform(0, 360),
             'traffic_level': np.random.randint(1, 5),
             'dust_road_flag': np.random.randint(0, 2),
         })
 
-        # Build data
-        seq_len = 7
-        X, y, scaler, X_new_scaled = build_dataset(history, new_inputs, seq_len=seq_len)
+    # user/API-generated inputs for next 3 days
+    new_inputs = []
+    for offset in range(1, 4):
+        new_inputs.append({
+            'timestamp': (datetime.now() + pd.Timedelta(days=offset)).strftime("%Y-%m-%d"),
+            'weather_temp': np.random.uniform(10, 35),
+            'weather_humidity': np.random.uniform(20, 90),
+            'wind_speed': np.random.uniform(0, 12),
+            'wind_direction': np.random.uniform(0, 360),
+            'traffic_level': np.random.randint(1, 5),
+            'dust_road_flag': np.random.randint(0, 2),
+        })
 
-        # Train model on history
-        model = build_model((seq_len, X.shape[2]))
-        model.fit(X, y, epochs=20, batch_size=4, verbose=1)
+    # build dataset
+    X, y, scaler, X_future_scaled, feature_cols = build_dataset(
+        history, new_inputs, seq_len=seq_len
+    )
 
-        # take the last seq_len from history + first few new inputs to form input for first prediction
-        hist_df = pd.DataFrame(history)
+    # train model
+    model = build_model((seq_len, X.shape[2]))
+    model.fit(X, y, epochs=20, batch_size=4, verbose=1)
 
-        # generate engineered features
-        hist_df["month"] = pd.to_datetime(hist_df["timestamp"]).dt.month
-        hist_df["dayofyear"] = pd.to_datetime(hist_df["timestamp"]).dt.dayofyear
-        hist_df["dry_season"] = hist_df["month"].apply(lambda m: 1 if 2 <= m <= 4 else 0)
+    # predict next 3 days AQI
+    predictions = predict_next_days(
+        model, scaler, history, X_future_scaled, feature_cols, seq_len
+    )
 
-        # ensure consistent column order with training
-        feature_cols = [
-            'weather_temp', 'weather_humidity', 'wind_speed', 'wind_direction',
-            'traffic_level', 'dust_road_flag', 'month', 'dayofyear', 'dry_season'
-        ]
-
-        # take last sequence_length rows
-        last_seq_raw = hist_df[feature_cols].iloc[-seq_len:]
-
-        # scale
-        last_seq = scaler.transform(last_seq_raw)
-
-        # reshape for LSTM
-        last_seq = last_seq.reshape((1, seq_len, len(feature_cols)))
-
-        predictions = []
-        for i in range(len(new_inputs)):
-            pred = model.predict(last_seq)[0][0]
-            predictions.append(pred)
-            # update last_seq by appending new input (scaled) and popping first
-            new_feat = X_new_scaled[i].reshape((1, 1, X.shape[1]))
-            last_seq = np.concatenate([last_seq[:, 1:, :], new_feat], axis=1)
-
-        print("Predicted AQI for next days:", predictions)
+    print("\nPredicted AQI for next 3 days:")
+    for i, p in enumerate(predictions):
+        print(f"Day {i+1}: {p:.2f}")
