@@ -7,7 +7,16 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 
-
+# LSTM model
+def build_model(input_shape):
+    model = Sequential()
+    model.add(LSTM(50, input_shape=input_shape, return_sequences=True))
+    model.add(Dropout(0.2))
+    model.add(LSTM(50, return_sequences=False))
+    model.add(Dropout(0.2))
+    model.add(Dense(1, activation='linear'))
+    model.compile(optimizer=Adam(learning_rate=0.001), loss='mse')
+    return model
 
 if __name__ == "__main__":
     # historical data (last 14 days)
