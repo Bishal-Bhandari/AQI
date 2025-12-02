@@ -100,11 +100,27 @@ if __name__ == "__main__":
         model.fit(X, y, epochs=20, batch_size=4, verbose=1)
 
         # take the last seq_len from history + first few new inputs to form input for first prediction
-        last_seq = scaler.transform(pd.DataFrame(history)[
-                                        ['weather_temp', 'weather_humidity', 'wind_speed', 'wind_direction',
-                                         'traffic_level', 'dust_road_flag', 'month', 'dayofyear', 'dry_season']].values[
-                                    -seq_len:])
-        last_seq = last_seq.reshape((1, seq_len, X.shape[2]))
+        hist_df = pd.DataFrame(history)
+
+        # generate engineered features
+        hist_df["month"] = pd.to_datetime(hist_df["timestamp"]).dt.month
+        hist_df["dayofyear"] = pd.to_datetime(hist_df["timestamp"]).dt.dayofyear
+        hist_df["dry_season"] = hist_df["month"].apply(lambda m: 1 if 2 <= m <= 4 else 0)
+
+        # ensure consistent column order with training
+        feature_cols = [
+            'weather_temp', 'weather_humidity', 'wind_speed', 'wind_direction',
+            'traffic_level', 'dust_road_flag', 'month', 'dayofyear', 'dry_season'
+        ]
+
+        # take last sequence_length rows
+        last_seq_raw = hist_df[feature_cols].iloc[-seq_len:]
+
+        # scale
+        last_seq = scaler.transform(last_seq_raw)
+
+        # reshape for LSTM
+        last_seq = last_seq.reshape((1, seq_len, len(feature_cols)))
 
         predictions = []
         for i in range(len(new_inputs)):
