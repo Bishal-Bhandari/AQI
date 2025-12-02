@@ -39,6 +39,20 @@ def build_dataset(history,
     # prepare new data
     X_new = df.iloc[len(history):][features]
 
+    # Preprocess / scale
+    scaler = MinMaxScaler()
+    X_scaled = scaler.fit_transform(X_known)
+    X_new_scaled = scaler.transform(X_new)
+
+    # build sequences
+    X_seq, y_seq = [], []
+    for i in range(seq_len, len(X_scaled)):
+        X_seq.append(X_scaled[i-seq_len:i])
+        y_seq.append(y_known.values[i])
+    X_seq, y_seq = np.array(X_seq), np.array(y_seq)
+
+    return X_seq, y_seq, scaler, X_new_scaled
+
 # LSTM model
 def build_model(input_shape):
     model = Sequential()
