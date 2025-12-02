@@ -58,12 +58,13 @@ def build_model(input_shape):
 
 # perform prediction
 def predict_next_days(model, scaler, history_df, future_scaled, feature_cols, seq_len=7):
-    # build full history again with engineered features
+    # build with engineered features
     hist_df = add_features(pd.DataFrame(history_df))
     last_seq_raw = hist_df[feature_cols].tail(seq_len)
 
-    # scale last sequence
-    last_seq = scaler.transform(last_seq_raw.to_numpy())
+   #scale last sequencws
+    last_seq = scaler.transform(last_seq_raw)
+
     last_seq = last_seq.reshape((1, seq_len, len(feature_cols)))
 
     predictions = []
