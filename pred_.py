@@ -17,6 +17,19 @@ def build_dataset(history,
 
     # Combine
     df = pd.concat([df_hist, df_new], ignore_index=True)
+    # feature engineering
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df['month'] = df['timestamp'].dt.month
+    df['dayofyear'] = df['timestamp'].dt.dayofyear
+    # Example: dry-season flag (Feb–Apr)
+    df['dry_season'] = df['month'].isin([2, 3, 4]).astype(int)
+
+    # define features to use
+    features = ['weather_temp', 'weather_humidity',
+                'wind_speed', 'wind_direction',  # if available
+                'traffic_level', 'dust_road_flag', 'dry_season',
+                'month', 'dayofyear']
+    target = 'aqi'
 
 # LSTM model
 def build_model(input_shape):
