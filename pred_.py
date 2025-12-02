@@ -31,6 +31,14 @@ def build_dataset(history,
                 'month', 'dayofyear']
     target = 'aqi'
 
+    # separate X and y (for known history)
+    df_known = df.iloc[: len(history)]
+    X_known = df_known[features]
+    y_known = df_known[target]
+
+    # prepare new data
+    X_new = df.iloc[len(history):][features]
+
 # LSTM model
 def build_model(input_shape):
     model = Sequential()
