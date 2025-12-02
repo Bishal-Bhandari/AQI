@@ -7,6 +7,17 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.optimizers import Adam
 
+
+# build dataset
+def build_dataset(history,
+                  new_inputs,   # list of dicts: weather, season, extra features, timestamp ...
+                  seq_len=7):
+    df_hist = pd.DataFrame(history)
+    df_new = pd.DataFrame(new_inputs)
+
+    # Combine
+    df = pd.concat([df_hist, df_new], ignore_index=True)
+
 # LSTM model
 def build_model(input_shape):
     model = Sequential()
