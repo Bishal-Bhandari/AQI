@@ -4,6 +4,12 @@ from datetime import datetime
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Input
 from sklearn.preprocessing import MinMaxScaler
+import yaml
+
+with open("config.yaml") as f:
+    config = yaml.safe_load(f)
+
+SEQ_LEN = config["lstm"]["sequence_length"]
 
 # Feature engineering
 def add_features(df):
