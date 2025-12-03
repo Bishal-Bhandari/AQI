@@ -107,44 +107,49 @@ def predict_next_days(model, scaler, history_df, future_scaled, seq_len):
 
 if __name__ == "__main__":
 
-    # generate synthetic history
+    # load API settings
+    api_key = config["openweather"]["api_key"]
+    location = config["openweather"]["location"]
+    units = config["openweather"]["units"]
+
+    # generate synthetic AQI + weather for history
     history = []
     for day in range(HISTORY_DAYS):
+        weather = get_weather_from_openweather(api_key, location, units)
+
         history.append({
             "timestamp": (datetime.now() - pd.Timedelta(days=HISTORY_DAYS-day)).strftime("%Y-%m-%d"),
-            "aqi": np.random.randint(40, 200),
-            "weather_temp": np.random.uniform(5, 35),
-            "weather_humidity": np.random.uniform(20, 90),
-            "wind_speed": np.random.uniform(0, 12),
-            "wind_direction": np.random.uniform(0, 360),
+            "aqi": np.random.randint(40, 200),   # Replace with real AQI API if you want
+            **weather,
             "traffic_level": np.random.randint(1, 5),
             "dust_road_flag": np.random.randint(0, 2),
         })
 
-    # user/API-provided future inputs
+    # build future inputs using OpenWeather + user input
     new_inputs = []
     for offset in range(1, PREDICT_DAYS + 1):
+        weather = get_weather_from_openweather(api_key, location, units)
+
         new_inputs.append({
             "timestamp": (datetime.now() + pd.Timedelta(days=offset)).strftime("%Y-%m-%d"),
-            "weather_temp": np.random.uniform(10, 35),
-            "weather_humidity": np.random.uniform(20, 90),
-            "wind_speed": np.random.uniform(0, 12),
-            "wind_direction": np.random.uniform(0, 360),
-            "traffic_level": np.random.randint(1, 5),
-            "dust_road_flag": np.random.randint(0, 2),
+            **weather,
+            "traffic_level": int(input(f"Enter traffic level (1-4) for day {offset}: ")),
+            "dust_road_flag": int(input(f"Dusty roads? (0/1) for day {offset}: "))
         })
 
     # build dataset
     X, y, scaler, X_future_scaled = build_dataset(history, new_inputs, SEQ_LEN)
 
-    # train model
+    # train
     model = build_model(SEQ_LEN, X.shape[2])
     model.fit(X, y, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=1)
 
-    # predict next days
+    # predict
     predictions = predict_next_days(model, scaler, history, X_future_scaled, SEQ_LEN)
 
+    # output
     print("\n==============================")
     print("Predicted AQI:")
     for i, p in enumerate(predictions):
         print(f"Day {i+1}: {p:.2f}")
+
