@@ -4,68 +4,24 @@ project:
   description: "Python-based AQI predictor using LSTM, weather APIs, seasonal patterns, and interactive map."
 
 lstm:
-  sequence_length: 7                # number of historical days used
+  sequence_length: 7
+  lstm_units: 64
+  dense_units: 32
   epochs: 20
   batch_size: 4
-  features:
-    - aqi
-    - weather_temp
-    - weather_humidity
-    - wind_speed
-    - wind_direction
-    - traffic_level
-    - dust_road_flag
-    - month
-    - dayofyear
-    - dry_season
 
-season_factors:
-  dry_season:
-    start_month: 2    # Feb
-    end_month: 4      # April
-    multiplier: 1.25  # AQI tends to spike due to forest fires, crop burning
+data:
+  history_days: 14
+  predict_days: 3
 
-traffic:
-  scale: 1_to_5
-  note: "Higher traffic → higher predicted AQI"
+features:
+  - weather_temp
+  - weather_humidity
+  - wind_speed
+  - wind_direction
+  - traffic_level
+  - dust_road_flag
+  - month
+  - dayofyear
+  - dry_season
 
-dust_road:
-  flag_meaning:
-    0: "Normal road"
-    1: "Dusty road / construction area"
-  effect_multiplier: 1.15
-
-map:
-  default_zoom: 7
-  default_lat: 28.3949      # Nepal center latitude
-  default_lon: 84.1240      # Nepal center longitude
-  hover_popup: true
-  show_aqi_legend: true     # top-right AQI table
-  tiles: "OpenStreetMap"
-
-logging:
-  level: "INFO"
-  save_logs: true
-  log_file: "logs/app.log"
-
-output:
-  save_predictions: true
-  output_dir: "output"
-  prediction_file: "aqi_forecast.json"
-
-ui:
-  enable_web_interface: true
-  template_folder: "templates"
-  static_folder: "static"
-
-developer:
-  author: "Bishal Bhandari"
-  python_version: "3.12"
-  dependencies:
-    - tensorflow
-    - numpy
-    - pandas
-    - flask
-    - requests
-    - scikit-learn
-    - folium
