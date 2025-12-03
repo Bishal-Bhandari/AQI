@@ -5,6 +5,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import LSTM, Dense, Input
 from sklearn.preprocessing import MinMaxScaler
 import yaml
+import requests
 
 with open("config.yaml") as f:
     config = yaml.safe_load(f)
@@ -19,6 +20,20 @@ HISTORY_DAYS = config["data"]["history_days"]
 PREDICT_DAYS = config["data"]["predict_days"]
 
 FEATURE_COLS = config["features"]
+
+# opeanweather api request
+def get_weather_from_openweather(api_key, location, units="metric"):
+    url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={api_key}&units={units}"
+
+    resp = requests.get(url)
+    data = resp.json()
+
+    return {
+        "weather_temp": data["main"]["temp"],
+        "weather_humidity": data["main"]["humidity"],
+        "wind_speed": data["wind"]["speed"],
+        "wind_direction": data["wind"]["deg"]
+    }
 
 # Feature engineering
 def add_features(df):
