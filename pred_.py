@@ -130,6 +130,7 @@ if __name__ == "__main__":
         model, scaler, history, X_future_scaled, feature_cols, seq_len
     )
 
+    print("\n==============================")
     print("\nPredicted AQI for next 3 days:")
     for i, p in enumerate(predictions):
         print(f"Day {i+1}: {p:.2f}")
