@@ -10,6 +10,15 @@ with open("config.yaml") as f:
     config = yaml.safe_load(f)
 
 SEQ_LEN = config["lstm"]["sequence_length"]
+LSTM_UNITS = config["lstm"]["lstm_units"]
+DENSE_UNITS = config["lstm"]["dense_units"]
+EPOCHS = config["lstm"]["epochs"]
+BATCH_SIZE = config["lstm"]["batch_size"]
+
+HISTORY_DAYS = config["data"]["history_days"]
+PREDICT_DAYS = config["data"]["predict_days"]
+
+FEATURE_COLS = config["features"]
 
 # Feature engineering
 def add_features(df):
