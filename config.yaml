@@ -14,6 +14,10 @@ data:
   history_days: 14
   predict_days: 3
 
+openweather:
+  location: "Kathmandu"
+  units: "metric"
+
 features:
   - weather_temp
   - weather_humidity

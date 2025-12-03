@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import pandas as pd
 from datetime import datetime
@@ -9,6 +10,11 @@ import requests
 
 with open("config.yaml") as f:
     config = yaml.safe_load(f)
+
+# Load API keys
+with open('api_keys.json') as json_file:
+    api_keys = json.load(json_file)
+API_KEY_ = api_keys['Weather_API']['API_key']
 
 SEQ_LEN = config["lstm"]["sequence_length"]
 LSTM_UNITS = config["lstm"]["lstm_units"]
@@ -108,7 +114,7 @@ def predict_next_days(model, scaler, history_df, future_scaled, seq_len):
 if __name__ == "__main__":
 
     # load API settings
-    api_key = config["openweather"]["api_key"]
+    api_key = API_KEY_
     location = config["openweather"]["location"]
     units = config["openweather"]["units"]
 
