@@ -29,21 +29,16 @@ def add_features(df):
 
 
 # Build dataset for LSTM
-def build_dataset(history, future_inputs, seq_len=7):
-    feature_cols = [
-        "weather_temp", "weather_humidity", "wind_speed", "wind_direction",
-        "traffic_level", "dust_road_flag", "month", "dayofyear", "dry_season"
-    ]
-
-    # lists to DataFrames
+def build_dataset(history, future_inputs, seq_len):
+    # Convert input lists to DataFrames
     hist_df = add_features(pd.DataFrame(history))
     future_df = add_features(pd.DataFrame(future_inputs))
 
-    # prepare scaler
+    # Scale features
     scaler = MinMaxScaler()
-    scaled_hist = scaler.fit_transform(hist_df[feature_cols])
+    scaled_hist = scaler.fit_transform(hist_df[FEATURE_COLS])
 
-    # build sequences (X) and targets (y)
+    # Build training sequences
     X, y = [], []
     for i in range(len(scaled_hist) - seq_len):
         X.append(scaled_hist[i:i+seq_len])
@@ -51,18 +46,18 @@ def build_dataset(history, future_inputs, seq_len=7):
 
     X, y = np.array(X), np.array(y)
 
-    # scale future inputs
-    X_future = scaler.transform(future_df[feature_cols])
+    # Scale future inputs
+    X_future = scaler.transform(future_df[FEATURE_COLS])
 
-    return X, y, scaler, X_future, feature_cols
+    return X, y, scaler, X_future
 
 
 # build LSTM model
 def build_model(seq_len, num_features):
     model = Sequential([
         Input(shape=(seq_len, num_features)),
-        LSTM(64, activation="tanh"),
-        Dense(32, activation='relu'),
+        LSTM(LSTM_UNITS, activation="tanh"),
+        Dense(DENSE_UNITS, activation='relu'),
         Dense(1)
     ])
     model.compile(optimizer='adam', loss='mse')
