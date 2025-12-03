@@ -64,77 +64,72 @@ def build_model(seq_len, num_features):
     return model
 
 # perform prediction
-def predict_next_days(model, scaler, history_df, future_scaled, feature_cols, seq_len=7):
-    # build with engineered features
+def predict_next_days(model, scaler, history_df, future_scaled, seq_len):
     hist_df = add_features(pd.DataFrame(history_df))
-    last_seq_raw = hist_df[feature_cols].tail(seq_len)
 
-   #scale last sequencws
+    last_seq_raw = hist_df[FEATURE_COLS].tail(seq_len)
+
     last_seq = scaler.transform(last_seq_raw)
-
-    last_seq = last_seq.reshape((1, seq_len, len(feature_cols)))
+    last_seq = last_seq.reshape(1, seq_len, len(FEATURE_COLS))
 
     predictions = []
     seq = last_seq.copy()
 
     for i in range(len(future_scaled)):
-        pred = model.predict(seq)[0][0]
+        # Predict next timestep
+        pred = model.predict(seq, verbose=0)[0][0]
         predictions.append(pred)
 
-        # prepare new timestep
-        new_input = future_scaled[i].reshape(1, 1, len(feature_cols))
+        # Append next feature vector
+        new_input = future_scaled[i].reshape(1, 1, len(FEATURE_COLS))
 
-        # slide window
+        # Slide the window
         seq = np.concatenate([seq[:, 1:, :], new_input], axis=1)
 
     return predictions
 
 
-if __name__ == "__main__":
-    seq_len = 7
 
-    # generate synthetic 14-day training history
+if __name__ == "__main__":
+
+    # generate synthetic history
     history = []
-    for day in range(14):
+    for day in range(HISTORY_DAYS):
         history.append({
-            'timestamp': (datetime.now() - pd.Timedelta(days=14-day)).strftime("%Y-%m-%d"),
-            'aqi': np.random.randint(40, 200),
-            'weather_temp': np.random.uniform(5, 35),
-            'weather_humidity': np.random.uniform(20, 90),
-            'wind_speed': np.random.uniform(0, 12),
-            'wind_direction': np.random.uniform(0, 360),
-            'traffic_level': np.random.randint(1, 5),
-            'dust_road_flag': np.random.randint(0, 2),
+            "timestamp": (datetime.now() - pd.Timedelta(days=HISTORY_DAYS-day)).strftime("%Y-%m-%d"),
+            "aqi": np.random.randint(40, 200),
+            "weather_temp": np.random.uniform(5, 35),
+            "weather_humidity": np.random.uniform(20, 90),
+            "wind_speed": np.random.uniform(0, 12),
+            "wind_direction": np.random.uniform(0, 360),
+            "traffic_level": np.random.randint(1, 5),
+            "dust_road_flag": np.random.randint(0, 2),
         })
 
-    # user/API-generated inputs for next 3 days
+    # user/API-provided future inputs
     new_inputs = []
-    for offset in range(1, 4):
+    for offset in range(1, PREDICT_DAYS + 1):
         new_inputs.append({
-            'timestamp': (datetime.now() + pd.Timedelta(days=offset)).strftime("%Y-%m-%d"),
-            'weather_temp': np.random.uniform(10, 35),
-            'weather_humidity': np.random.uniform(20, 90),
-            'wind_speed': np.random.uniform(0, 12),
-            'wind_direction': np.random.uniform(0, 360),
-            'traffic_level': np.random.randint(1, 5),
-            'dust_road_flag': np.random.randint(0, 2),
+            "timestamp": (datetime.now() + pd.Timedelta(days=offset)).strftime("%Y-%m-%d"),
+            "weather_temp": np.random.uniform(10, 35),
+            "weather_humidity": np.random.uniform(20, 90),
+            "wind_speed": np.random.uniform(0, 12),
+            "wind_direction": np.random.uniform(0, 360),
+            "traffic_level": np.random.randint(1, 5),
+            "dust_road_flag": np.random.randint(0, 2),
         })
 
     # build dataset
-    X, y, scaler, X_future_scaled, feature_cols = build_dataset(
-        history, new_inputs, seq_len=seq_len
-    )
+    X, y, scaler, X_future_scaled = build_dataset(history, new_inputs, SEQ_LEN)
 
     # train model
-    model = build_model(seq_len, X.shape[2])
-    model.fit(X, y, epochs=20, batch_size=4, verbose=1)
+    model = build_model(SEQ_LEN, X.shape[2])
+    model.fit(X, y, epochs=EPOCHS, batch_size=BATCH_SIZE, verbose=1)
 
-    # predict next 3 days AQI
-    predictions = predict_next_days(
-        model, scaler, history, X_future_scaled, feature_cols, seq_len
-    )
+    # predict next days
+    predictions = predict_next_days(model, scaler, history, X_future_scaled, SEQ_LEN)
 
     print("\n==============================")
-    print("\nPredicted AQI for next 3 days:")
+    print("Predicted AQI:")
     for i, p in enumerate(predictions):
         print(f"Day {i+1}: {p:.2f}")
