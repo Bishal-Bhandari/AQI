@@ -1,3 +1,5 @@
+import json
+
 import yaml
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -5,13 +7,18 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from weather_api import get_weather_data
-from data_utils import build_dataset
-from model import build_model, predict_future
+from Prediction.weather_api import get_weather_data
+from Prediction.data_utils import build_dataset
+from Prediction.model import build_model, predict_future
+
+# Load API keys
+with open('api_keys.json') as json_file:
+    api_keys = json.load(json_file)
+API_KEY_ = api_keys['Weather_API']['API_key']
 
 
 # Load config
-with open("config.yaml") as f:
+with open("Prediction/config.yaml") as f:
     config = yaml.safe_load(f)
 
 SEQ_LEN = config["lstm"]["sequence_length"]
@@ -29,7 +36,7 @@ class UserInputs(BaseModel):
 @app.post("/predict")
 def predict_aqi(user: UserInputs):
 
-    api_key = config["openweather"]["api_key"]
+    api_key = API_KEY_
     location = config["openweather"]["location"]
     units = config["openweather"]["units"]
 
