@@ -8,7 +8,7 @@ from sklearn.preprocessing import MinMaxScaler
 import yaml
 import requests
 
-with open("config.yaml") as f:
+with open("Prediction/config.yaml") as f:
     config = yaml.safe_load(f)
 
 # Load API keys
@@ -72,6 +72,12 @@ def build_dataset(history, future_inputs, seq_len):
 
     return X, y, scaler, X_future
 
+def prepare_last_sequence(history_df, scaler, feature_cols, seq_len):
+    hist_df = add_features(pd.DataFrame(history_df))
+    last_seq_raw = hist_df[feature_cols].tail(seq_len)
+
+    last_seq = scaler.transform(last_seq_raw)
+    return last_seq.reshape(1, seq_len, len(feature_cols))
 
 # build LSTM model
 def build_model(seq_len, num_features):
