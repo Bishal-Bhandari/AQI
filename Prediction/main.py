@@ -1,5 +1,4 @@
 import json
-
 import yaml
 from fastapi import FastAPI
 from pydantic import BaseModel
