@@ -15,7 +15,6 @@ with open('api_keys.json') as json_file:
     api_keys = json.load(json_file)
 API_KEY_ = api_keys['Weather_API']['API_key']
 
-
 # Load config
 with open("Prediction/config.yaml") as f:
     config = yaml.safe_load(f)
@@ -32,6 +31,14 @@ class UserInputs(BaseModel):
     predict_days: int = 3
 
 
+@app.get("/")
+def home():
+    return {
+        "status": "running",
+        "message": "AQI Prediction API is active. Go to /docs to use the API."
+    }
+
+
 @app.post("/predict")
 def predict_aqi(user: UserInputs):
 
@@ -39,7 +46,6 @@ def predict_aqi(user: UserInputs):
     location = config["openweather"]["location"]
     units = config["openweather"]["units"]
 
-    # Generate 14 days history
     history = []
     for i in range(14):
         w = get_weather_data(api_key, location, units)
@@ -51,7 +57,6 @@ def predict_aqi(user: UserInputs):
             "dust_road_flag": np.random.randint(0, 2)
         })
 
-    # Future inputs
     future_inputs = []
     for i in range(user.predict_days):
         w = get_weather_data(api_key, location, units)
@@ -62,19 +67,25 @@ def predict_aqi(user: UserInputs):
             "dust_road_flag": user.dust_road_flag
         })
 
-    # Build dataset
     X, y, scaler, X_future_scaled = build_dataset(history, future_inputs, SEQ_LEN, FEATURE_COLS)
 
-    # Build + Train model
-    model = build_model(SEQ_LEN, X.shape[2],
-                        config["lstm"]["lstm_units"],
-                        config["lstm"]["dense_units"])
+    model = build_model(
+        SEQ_LEN,
+        X.shape[2],
+        config["lstm"]["lstm_units"],
+        config["lstm"]["dense_units"]
+    )
 
-    model.fit(X, y, epochs=config["lstm"]["epochs"],
-              batch_size=config["lstm"]["batch_size"], verbose=0)
+    model.fit(
+        X, y,
+        epochs=config["lstm"]["epochs"],
+        batch_size=config["lstm"]["batch_size"],
+        verbose=0
+    )
 
-    # Predict
-    preds = predict_future(model, scaler, pd.DataFrame(history),
-                           X_future_scaled, FEATURE_COLS, SEQ_LEN)
+    preds = predict_future(
+        model, scaler, pd.DataFrame(history),
+        X_future_scaled, FEATURE_COLS, SEQ_LEN
+    )
 
     return {"predicted_aqi": preds}
