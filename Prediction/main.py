@@ -52,78 +52,85 @@ def home():
 # Prediction Endpoint
 @app.post("/predict")
 def predict_aqi(user: UserInputs):
+    api_key = API_KEY_
+    location = config["openweather"]["location"]
+    units = config["openweather"]["units"]
 
-    try:
-        api_key = API_KEY_
-        location = config["openweather"]["location"]
-        units = config["openweather"]["units"]
+    # Create 14 days of history
+    history = []
+    for i in range(14):
+        w = get_weather_data(api_key, location, units)
 
-        # 1. Prepare HISTORY Data (past 14 days)
-        history = []
+        date = datetime.now() - pd.Timedelta(days=14 - i)
+        month = date.month
+        dayofyear = date.timetuple().tm_yday
+        dry_season = 1 if month in [10, 11, 12, 1, 2] else 0
 
-        for i in range(14):
-            weather = get_weather_data(api_key, location, units)
+        history.append({
+            "timestamp": date.strftime("%Y-%m-%d"),
+            "weather_temp": w["weather_temp"],
+            "weather_humidity": w["weather_humidity"],
+            "wind_speed": w["wind_speed"],
+            "wind_direction": w["wind_direction"],
+            "traffic_level": np.random.randint(1, 5),
+            "dust_road_flag": np.random.randint(0, 2),
+            "month": month,
+            "dayofyear": dayofyear,
+            "dry_season": dry_season,
+            "aqi": np.random.randint(40, 200)
+        })
 
-            history.append({
-                "timestamp": (datetime.now() - pd.Timedelta(days=(14 - i))).strftime("%Y-%m-%d"),
-                "aqi": np.random.randint(40, 200),  # Replace with actual historical AQI if you have it
-                **weather,
-                "traffic_level": np.random.randint(1, 5),
-                "dust_road_flag": np.random.randint(0, 2)
-            })
+    # Create future inputs
+    future_inputs = []
+    for i in range(user.predict_days):
+        w = get_weather_data(api_key, location, units)
 
-        # 2. Prepare FUTURE INPUTS
-        future_inputs = []
-        for i in range(user.predict_days):
-            weather = get_weather_data(api_key, location, units)
+        future_date = datetime.now() + pd.Timedelta(days=i + 1)
+        month = future_date.month
+        dayofyear = future_date.timetuple().tm_yday
+        dry_season = 1 if month in [10, 11, 12, 1, 2] else 0
 
-            future_inputs.append({
-                "timestamp": (datetime.now() + pd.Timedelta(days=i+1)).strftime("%Y-%m-%d"),
-                **weather,
-                "traffic_level": user.traffic_level,
-                "dust_road_flag": user.dust_road_flag
-            })
+        future_inputs.append({
+            "timestamp": future_date.strftime("%Y-%m-%d"),
+            "weather_temp": w["weather_temp"],
+            "weather_humidity": w["weather_humidity"],
+            "wind_speed": w["wind_speed"],
+            "wind_direction": w["wind_direction"],
+            "traffic_level": user.traffic_level,
+            "dust_road_flag": user.dust_road_flag,
+            "month": month,
+            "dayofyear": dayofyear,
+            "dry_season": dry_season
+        })
 
-        # Convert to DataFrames
-        history_df = pd.DataFrame(history)
-        future_df = pd.DataFrame(future_inputs)
+    # Prepare dataset
+    X, y, scaler, X_future_scaled = build_dataset(
+        history, future_inputs, SEQ_LEN, FEATURE_COLS
+    )
 
-        # Add required features (month, dayofyear, dry_season)
-        history_df = add_time_features(history_df)
-        future_df = add_time_features(future_df)
+    # Build & Train Model
+    model = build_model(
+        SEQ_LEN,
+        X.shape[2],
+        config["lstm"]["lstm_units"],
+        config["lstm"]["dense_units"]
+    )
 
-        # 3. Build Dataset
-        X, y, scaler, X_future_scaled = build_dataset(
-            history_df, future_df, SEQ_LEN, FEATURE_COLS
-        )
+    model.fit(
+        X, y,
+        epochs=config["lstm"]["epochs"],
+        batch_size=config["lstm"]["batch_size"],
+        verbose=0
+    )
 
-        # 4. Build + Train Model
-        model = build_model(
-            SEQ_LEN,
-            X.shape[2],
-            config["lstm"]["lstm_units"],
-            config["lstm"]["dense_units"]
-        )
+    # Predict
+    preds = predict_future(
+        model, scaler, pd.DataFrame(history),
+        X_future_scaled, FEATURE_COLS, SEQ_LEN
+    )
 
-        model.fit(
-            X, y,
-            epochs=config["lstm"]["epochs"],
-            batch_size=config["lstm"]["batch_size"],
-            verbose=0
-        )
+    # Convert to normal Python types
+    preds_list = [float(x) for x in preds]
 
-        # 5. Predict Future AQI
-        predictions = predict_future(
-            model, scaler, history_df,
-            X_future_scaled, FEATURE_COLS, SEQ_LEN
-        )
+    return {"predicted_aqi": preds_list}
 
-        # 6. Return Clean JSON Response
-        return {
-            "status": "success",
-            "requested_days": user.predict_days,
-            "aqi_predictions": predictions
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
