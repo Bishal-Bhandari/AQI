@@ -81,6 +81,14 @@ def predict_aqi(user: UserInputs):
                 "dust_road_flag": user.dust_road_flag
             })
 
+        # Convert to DataFrames
+        history_df = pd.DataFrame(history)
+        future_df = pd.DataFrame(future_inputs)
+
+        # Add required features (month, dayofyear, dry_season)
+        history_df = add_time_features(history_df)
+        future_df = add_time_features(future_df)
+
         # 3. BUILD DATASET
         X, y, scaler, X_future_scaled = build_dataset(
             history, future_inputs, SEQ_LEN, FEATURE_COLS
