@@ -31,6 +31,13 @@ class UserInputs(BaseModel):
     dust_road_flag: int
     predict_days: int = 3
 
+# Helper – Add Required Features
+def add_time_features(df):
+    df["timestamp"] = pd.to_datetime(df["timestamp"])
+    df["month"] = df["timestamp"].dt.month
+    df["dayofyear"] = df["timestamp"].dt.dayofyear
+    df["dry_season"] = df["month"].isin([11, 12, 1, 2, 3]).astype(int)
+    return df
 
 @app.get("/")
 def home():
